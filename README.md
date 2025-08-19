@@ -28,3 +28,13 @@ The application satisfies the above prompt by implementing the following functio
 > - The UI should be clean, with high-contrast text and a large typing area. White background.
 
 The `admin.html` file can be opened directly in a browser.  No build step or server is required; all libraries are loaded from public CDNs.
+
+## Hosting
+
+This repository includes a GitHub Actions workflow that publishes the static files to **GitHub Pages**. After merging changes into `main`:
+
+1. In the GitHub repository settings, enable **GitHub Pages** and select `GitHub Actions` as the source.
+2. The `Deploy to GitHub Pages` workflow will build and deploy the site automatically.
+3. The page will be available at `https://<username>.github.io/<repository>/admin.html`.
+
+No external services or paid plans are required; GitHub Pages provides free hosting for this static site.

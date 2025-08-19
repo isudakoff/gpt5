@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Blog Posting Area</title>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      font-family: system-ui, sans-serif;
+      background: #fff;
+      color: #000;
+    }
+    header {
+      padding: 1rem;
+      text-align: center;
+      font-weight: bold;
+      background: #f5f5f5;
+      border-bottom: 1px solid #ddd;
+    }
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .editor-preview {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    #controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      padding: 0.5rem;
+      background: #fafafa;
+      border-bottom: 1px solid #ddd;
+      align-items: center;
+    }
+    #controls button {
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+    }
+    #wordCount, #countdown {
+      margin-left: auto;
+      font-size: 0.9rem;
+    }
+    textarea {
+      flex: 1;
+      padding: 1rem;
+      font-size: 1rem;
+      border: none;
+      border-right: 1px solid #ddd;
+      resize: none;
+      outline: none;
+    }
+    #preview {
+      flex: 1;
+      padding: 1rem;
+      overflow-y: auto;
+    }
+    .split {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+    }
+    canvas {
+      max-width: 100%;
+    }
+    @media (min-width: 768px) {
+      main {
+        flex-direction: row;
+      }
+      .editor-preview {
+        flex-direction: row;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>Blog Posting Area</header>
+  <main>
+    <div class="editor-preview">
+      <div id="controls">
+        <button id="randomBtn">Insert Random Paragraph</button>
+        <button id="countdownBtn">Start Countdown</button>
+        <button id="snapshotBtn">Save Snapshot</button>
+        <span id="wordCount">0 words</span>
+        <span id="countdown"></span>
+      </div>
+      <div class="split">
+        <textarea id="editor" placeholder="Start writing here..." spellcheck="true"></textarea>
+        <div id="preview" aria-live="polite"></div>
+      </div>
+    </div>
+  </main>
+  <section>
+    <canvas id="historyChart" height="200"></canvas>
+  </section>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.5/dist/purify.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script>
+    const editor = document.getElementById('editor');
+    const preview = document.getElementById('preview');
+    const randomBtn = document.getElementById('randomBtn');
+    const countdownBtn = document.getElementById('countdownBtn');
+    const snapshotBtn = document.getElementById('snapshotBtn');
+    const wordCountLabel = document.getElementById('wordCount');
+    const countdownLabel = document.getElementById('countdown');
+    const ctx = document.getElementById('historyChart');
+
+    const randomParagraphs = [
+      'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus.',
+      'Praesent dapibus, neque id cursus faucibus, tortor neque egestas auguae.',
+      'Donec eu libero sit amet quam egestas semper. Aenean ultricies mi vitae est.',
+      'Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia.'
+    ];
+
+    function updatePreview() {
+      const markdown = editor.value;
+      const html = DOMPurify.sanitize(marked.parse(markdown));
+      preview.innerHTML = html;
+      updateWordCount();
+    }
+
+    function updateWordCount() {
+      const words = editor.value.trim().split(/\s+/).filter(Boolean);
+      wordCountLabel.textContent = words.length + (words.length === 1 ? ' word' : ' words');
+    }
+
+    editor.addEventListener('input', updatePreview);
+
+    randomBtn.addEventListener('click', () => {
+      const text = randomParagraphs[Math.floor(Math.random() * randomParagraphs.length)];
+      editor.value += (editor.value ? '\n\n' : '') + text;
+      updatePreview();
+    });
+
+    countdownBtn.addEventListener('click', () => {
+      let count = 5;
+      countdownLabel.textContent = count;
+      countdownBtn.disabled = true;
+      const interval = setInterval(() => {
+        count--;
+        if (count > 0) {
+          countdownLabel.textContent = count;
+        } else {
+          countdownLabel.textContent = 'Go!';
+          clearInterval(interval);
+          setTimeout(() => {
+            countdownLabel.textContent = '';
+            countdownBtn.disabled = false;
+          }, 1000);
+        }
+      }, 1000);
+    });
+
+    let history = JSON.parse(localStorage.getItem('wordHistory') || '[]');
+    let chart;
+
+    function initChart() {
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: history.map(h => new Date(h.time).toLocaleTimeString()),
+          datasets: [{
+            label: 'Word Count',
+            data: history.map(h => h.count),
+            fill: false,
+            borderColor: '#007bff',
+            tension: 0.1
+          }]
+        },
+        options: {
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+    }
+
+    function updateChart() {
+      if (!chart) {
+        initChart();
+      } else {
+        chart.data.labels = history.map(h => new Date(h.time).toLocaleTimeString());
+        chart.data.datasets[0].data = history.map(h => h.count);
+        chart.update();
+      }
+    }
+
+    snapshotBtn.addEventListener('click', () => {
+      const count = editor.value.trim().split(/\s+/).filter(Boolean).length;
+      history.push({ time: Date.now(), count });
+      localStorage.setItem('wordHistory', JSON.stringify(history));
+      updateChart();
+    });
+
+    updatePreview();
+    updateChart();
+  </script>
+</body>
+</html>
