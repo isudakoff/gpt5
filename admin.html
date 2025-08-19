@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Blog Posting Area</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.5/dist/purify.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    body {
+      margin: 1rem;
+      font-family: Arial, sans-serif;
+      background: #fff;
+      color: #000;
+    }
+    #controls {
+      margin-bottom: 1rem;
+    }
+    button {
+      margin-right: 0.5rem;
+      padding: 0.4rem 0.8rem;
+    }
+    .editor-wrapper {
+      display: flex;
+      gap: 1rem;
+    }
+    textarea {
+      flex: 1;
+      min-height: 300px;
+      padding: 1rem;
+      border: 1px solid #ccc;
+      font-size: 1rem;
+    }
+    #preview {
+      flex: 1;
+      padding: 1rem;
+      border: 1px solid #ccc;
+      background: #f8f8f8;
+      overflow: auto;
+    }
+    @media (max-width: 700px) {
+      .editor-wrapper {
+        flex-direction: column;
+      }
+      textarea, #preview {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Blog Posting Area</h1>
+  <div id="controls">
+    <button id="random">Insert Random Paragraph</button>
+    <button id="countdownBtn">Start Countdown</button>
+    <button id="snapshotBtn">Save Snapshot</button>
+    <span id="countdown" aria-live="polite"></span>
+  </div>
+  <div class="editor-wrapper">
+    <textarea id="editor" spellcheck="true" aria-label="Editor"></textarea>
+    <div id="preview" aria-live="polite"></div>
+  </div>
+  <canvas id="historyChart" width="400" height="200"></canvas>
+  <script>
+    const editor = document.getElementById('editor');
+    const preview = document.getElementById('preview');
+
+    function renderPreview() {
+      const html = DOMPurify.sanitize(marked.parse(editor.value));
+      preview.innerHTML = html;
+    }
+
+    editor.addEventListener('input', renderPreview);
+    renderPreview();
+
+    const paragraphs = [
+      'Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
+      'Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae.',
+      'Integer facilisis lorem nec sapien tempor, vitae faucibus ligula fermentum.'
+    ];
+
+    document.getElementById('random').addEventListener('click', () => {
+      const para = paragraphs[Math.floor(Math.random() * paragraphs.length)];
+      const start = editor.selectionStart;
+      const end = editor.selectionEnd;
+      const text = editor.value;
+      const insert = (start === 0 ? '' : '\n\n') + para;
+      editor.value = text.slice(0, start) + insert + text.slice(end);
+      editor.focus();
+      const pos = start + insert.length;
+      editor.setSelectionRange(pos, pos);
+      renderPreview();
+    });
+
+    document.getElementById('countdownBtn').addEventListener('click', () => {
+      let remaining = 5;
+      const el = document.getElementById('countdown');
+      el.textContent = remaining;
+      const interval = setInterval(() => {
+        remaining--;
+        el.textContent = remaining;
+        if (remaining <= 0) {
+          clearInterval(interval);
+        }
+      }, 1000);
+    });
+
+    const ctx = document.getElementById('historyChart').getContext('2d');
+    let snapshots = JSON.parse(localStorage.getItem('snapshots') || '[]');
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: snapshots.map(s => s.time),
+        datasets: [{
+          label: 'Word Count',
+          data: snapshots.map(s => s.count),
+          borderColor: '#007bff',
+          fill: false
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: { beginAtZero: true }
+        }
+      }
+    });
+
+    function saveSnapshots() {
+      localStorage.setItem('snapshots', JSON.stringify(snapshots));
+    }
+
+    document.getElementById('snapshotBtn').addEventListener('click', () => {
+      const count = editor.value.trim().split(/\s+/).filter(Boolean).length;
+      const time = new Date().toLocaleTimeString();
+      snapshots.push({ time, count });
+      chart.data.labels.push(time);
+      chart.data.datasets[0].data.push(count);
+      chart.update();
+      saveSnapshots();
+    });
+  </script>
+</body>
+</html>
