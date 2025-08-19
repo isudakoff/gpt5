@@ -1,6 +1,6 @@
 # GPT5
 
-There are many apps in the repo will be.
+There will be many apps in the repo.
 
 ## Blog Posting Area
 
